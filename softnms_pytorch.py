@@ -1,6 +1,7 @@
 # -*- coding:utf-8 -*-
 # Author:Richard Fang
 
+import time
 import numpy as np
 import torch
 
@@ -67,7 +68,24 @@ def soft_nms_pytorch(dets, box_scores, sigma=0.5, thresh=0.001, cuda=0):
     return keep
 
 
-if __name__ == '__main__':
+def speed():
+    boxes = 1000*torch.rand((1000, 100, 4), dtype=torch.float)
+    boxscores = torch.rand((1000, 100), dtype=torch.float)
+
+    # cuda flag
+    cuda = 1 if torch.cuda.is_available() else 0
+    if cuda:
+        boxes = boxes.cuda()
+        boxscores = boxscores.cuda()
+
+    start = time.time()
+    for i in range(1000):
+        soft_nms_pytorch(boxes[i], boxscores[i], cuda=cuda)
+    end = time.time()
+    print("Average run time: %f ms" % (end-start))
+
+
+def test():
     # boxes and boxscores
     boxes = torch.tensor([[200, 200, 400, 400],
                           [220, 220, 420, 420],
@@ -83,6 +101,12 @@ if __name__ == '__main__':
         boxscores = boxscores.cuda()
 
     print(soft_nms_pytorch(boxes, boxscores, cuda=cuda))
+
+
+if __name__ == '__main__':
+    test()
+    # speed()
+
 
 
 
