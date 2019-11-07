@@ -7,6 +7,7 @@ Original Paper：Improving Object Detection With One Line of Code
 import numpy as np
 import tensorflow as tf
 from keras import backend as K
+import time
 
 
 def py_cpu_softnms(dets, sc, Nt=0.3, sigma=0.5, thresh=0.001, method=2):
@@ -87,21 +88,37 @@ def py_cpu_softnms(dets, sc, Nt=0.3, sigma=0.5, thresh=0.001, method=2):
     # select the boxes and keep the corresponding indexes
     inds = dets[:, 4][scores > thresh]
     keep = inds.astype(int)
-    print(keep)
 
     return keep
 
 
-# boxes and scores
-boxes = np.array([[200, 200, 400, 400], [220, 220, 420, 420], [200, 240, 400, 440], [240, 200, 440, 400], [1, 1, 2, 2]], dtype=np.float32)
-boxscores = np.array([0.9, 0.8, 0.7, 0.6, 0.5], dtype=np.float32)
+def speed():
+    boxes = 1000*np.random.rand((1000, 100, 4))
+    boxscores = np.random.rand((1000, 100))
 
-# tf.image.non_max_suppression 中 boxes 是 [y1,x1,y2,x2] 排序的。
-with tf.Session() as sess:
-    # index = sess.run(tf.image.non_max_suppression(boxes=boxes, scores=boxscores, iou_threshold=0.5, max_output_size=5))
-    # print(index)
-    index = py_cpu_softnms(boxes, boxscores, method=3)
-    selected_boxes = sess.run(K.gather(boxes, index))
-    print(selected_boxes)
+    start = time.time()
+    for i in range(1000):
+        py_cpu_softnms(boxes[i], boxscores[i], method=2)
+    end = time.time()
+    print("Average run time: %f ms" % (end-start))
+
+
+def test():
+    # boxes and scores
+    boxes = np.array([[200, 200, 400, 400], [220, 220, 420, 420], [200, 240, 400, 440], [240, 200, 440, 400], [1, 1, 2, 2]], dtype=np.float32)
+    boxscores = np.array([0.9, 0.8, 0.7, 0.6, 0.5], dtype=np.float32)
+
+    # tf.image.non_max_suppression 中 boxes 是 [y1,x1,y2,x2] 排序的。
+    with tf.Session() as sess:
+        # index = sess.run(tf.image.non_max_suppression(boxes=boxes, scores=boxscores, iou_threshold=0.5, max_output_size=5))
+        # print(index)
+        index = py_cpu_softnms(boxes, boxscores, method=3)
+        selected_boxes = sess.run(K.gather(boxes, index))
+        print(selected_boxes)
+
+
+if __name__ == '__main__':
+    test()
+    # speed()
 
 
