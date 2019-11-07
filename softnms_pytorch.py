@@ -5,7 +5,7 @@ import numpy as np
 import torch
 
 
-def soft_nms_pytorch(dets, box_scores, sigma=0.5, thresh=0.001):
+def soft_nms_pytorch(dets, box_scores, sigma=0.5, thresh=0.001, cuda=0):
     """
     Build a pytorch implement of Soft NMS algorithm.
     # Augments
@@ -13,13 +13,17 @@ def soft_nms_pytorch(dets, box_scores, sigma=0.5, thresh=0.001):
         box_scores:  box score tensors
         sigma:       variance of Gaussian function
         thresh:      score thresh
+        cuda:        CUDA flag
     # Return
         the index of the selected boxes
     """
 
     # Indexes concatenate boxes with the last column
     N = dets.shape[0]
-    indexes = torch.arange(0, N, dtype=torch.float).view(N, 1)
+    if cuda:
+        indexes = torch.arange(0, N, dtype=torch.float).cuda().view(N, 1)
+    else:
+        indexes = torch.arange(0, N, dtype=torch.float).view(N, 1)
     dets = torch.cat((dets, indexes), dim=1)
 
     # The order of boxes coordinate is [y1,x1,y2,x2]
@@ -43,14 +47,14 @@ def soft_nms_pytorch(dets, box_scores, sigma=0.5, thresh=0.001):
                 areas[i], areas[maxpos + i + 1] = areas[maxpos + i + 1].clone(), areas[i].clone()
 
         # IoU calculate
-        yy1 = np.maximum(dets[i, 0].numpy(), dets[pos:, 0].numpy())
-        xx1 = np.maximum(dets[i, 1].numpy(), dets[pos:, 1].numpy())
-        yy2 = np.minimum(dets[i, 2].numpy(), dets[pos:, 2].numpy())
-        xx2 = np.minimum(dets[i, 3].numpy(), dets[pos:, 3].numpy())
+        yy1 = np.maximum(dets[i, 0].to("cpu").numpy(), dets[pos:, 0].to("cpu").numpy())
+        xx1 = np.maximum(dets[i, 1].to("cpu").numpy(), dets[pos:, 1].to("cpu").numpy())
+        yy2 = np.minimum(dets[i, 2].to("cpu").numpy(), dets[pos:, 2].to("cpu").numpy())
+        xx2 = np.minimum(dets[i, 3].to("cpu").numpy(), dets[pos:, 3].to("cpu").numpy())
         
         w = np.maximum(0.0, xx2 - xx1 + 1)
         h = np.maximum(0.0, yy2 - yy1 + 1)
-        inter = torch.tensor(w * h)
+        inter = torch.tensor(w * h).cuda() if cuda else torch.tensor(w * h)
         ovr = torch.div(inter, (areas[i] + areas[pos:] - inter))
 
         # Gaussian decay
@@ -59,25 +63,26 @@ def soft_nms_pytorch(dets, box_scores, sigma=0.5, thresh=0.001):
 
     # select the boxes and keep the corresponding indexes
     keep = dets[:, 4][scores > thresh].int()
-    print(keep)
-    print(scores)
 
     return keep
 
 
-boxes = torch.tensor([[200, 200, 400, 400],
-                      [220, 220, 420, 420],
-                      [200, 240, 400, 440],
-                      [240, 200, 440, 400],
-                      [1, 1, 2, 2]], dtype=torch.float)
-boxscores = torch.tensor([0.8, 0.7, 0.6, 0.5, 0.9], dtype=torch.float)
+if __name__ == '__main__':
+    # boxes and boxscores
+    boxes = torch.tensor([[200, 200, 400, 400],
+                          [220, 220, 420, 420],
+                          [200, 240, 400, 440],
+                          [240, 200, 440, 400],
+                          [1, 1, 2, 2]], dtype=torch.float)
+    boxscores = torch.tensor([0.8, 0.7, 0.6, 0.5, 0.9], dtype=torch.float)
 
-if torch.cuda.is_available():
-    boxes = boxes.cuda()
-    boxscores = boxscores.cuda()
+    # cuda flag
+    cuda = 1 if torch.cuda.is_available() else 0
+    if cuda:
+        boxes = boxes.cuda()
+        boxscores = boxscores.cuda()
 
-soft_nms_pytorch(boxes, boxscores)
-
+    print(soft_nms_pytorch(boxes, boxscores, cuda=cuda))
 
 
 
