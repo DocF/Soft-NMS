@@ -4,7 +4,7 @@ This repo include :
   2.  Pytorch version of Soft NMS algorithm
 
 # ToDo
-- [ ] Pytorch CUDA version
+- [x] Pytorch CUDA version
 - [ ] Keras version
 - [ ] speed analysis
 
