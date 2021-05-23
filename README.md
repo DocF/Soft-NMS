@@ -15,7 +15,7 @@ The average running time was obtained using 1000 tests, and 100 candidate boxes 
 | -----------  | --------- | --------- | 
 | python cpu version       | 21.472   | i9-7900X CPU@3.3GHz |
 | pytorch cpu version        | 21.778     | i9-7900X CPU@3.3GHz |
-| pytorch gpu version   | 60.128     | TITAN Xp |
+| pytorch gpu version   | 49.771     | RTX 2080 |
 
 
 ## ToDo
