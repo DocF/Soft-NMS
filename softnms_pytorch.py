@@ -2,6 +2,7 @@
 # Author:Richard Fang
 
 import time
+
 import numpy as np
 import torch
 
@@ -21,10 +22,10 @@ def soft_nms_pytorch(dets, box_scores, sigma=0.5, thresh=0.001, cuda=0):
 
     # Indexes concatenate boxes with the last column
     N = dets.shape[0]
-    if cuda:
-        indexes = torch.arange(0, N, dtype=torch.float).cuda().view(N, 1)
-    else:
-        indexes = torch.arange(0, N, dtype=torch.float).view(N, 1)
+    
+    device = torch.device('cuda' if cuda else 'cpu')
+    indexes = torch.arange(0, N, dtype=torch.float, device=device).view(N, 1)
+
     dets = torch.cat((dets, indexes), dim=1)
 
     # The order of boxes coordinate is [y1,x1,y2,x2]
@@ -43,19 +44,24 @@ def soft_nms_pytorch(dets, box_scores, sigma=0.5, thresh=0.001, cuda=0):
         if i != N - 1:
             maxscore, maxpos = torch.max(scores[pos:], dim=0)
             if tscore < maxscore:
-                dets[i], dets[maxpos.item() + i + 1] = dets[maxpos.item() + i + 1].clone(), dets[i].clone()
-                scores[i], scores[maxpos.item() + i + 1] = scores[maxpos.item() + i + 1].clone(), scores[i].clone()
-                areas[i], areas[maxpos + i + 1] = areas[maxpos + i + 1].clone(), areas[i].clone()
+                dets[i] = dets[maxpos.item() + i + 1].clone()
+                dets[maxpos.item() + i + 1] = dets[i].clone()
+
+                scores[i]= scores[maxpos.item() + i + 1].clone()
+                scores[maxpos.item() + i + 1] = scores[i].clone()
+                
+                areas[i] = areas[maxpos + i + 1].clone()
+                areas[maxpos + i + 1] = areas[i].clone()
 
         # IoU calculate
-        yy1 = np.maximum(dets[i, 0].to("cpu").numpy(), dets[pos:, 0].to("cpu").numpy())
-        xx1 = np.maximum(dets[i, 1].to("cpu").numpy(), dets[pos:, 1].to("cpu").numpy())
-        yy2 = np.minimum(dets[i, 2].to("cpu").numpy(), dets[pos:, 2].to("cpu").numpy())
-        xx2 = np.minimum(dets[i, 3].to("cpu").numpy(), dets[pos:, 3].to("cpu").numpy())
+        yy1 = torch.maximum(dets[i, 0], dets[pos:, 0])
+        xx1 = torch.maximum(dets[i, 1], dets[pos:, 1])
+        yy2 = torch.minimum(dets[i, 2], dets[pos:, 2])
+        xx2 = torch.minimum(dets[i, 3], dets[pos:, 3])
         
-        w = np.maximum(0.0, xx2 - xx1 + 1)
-        h = np.maximum(0.0, yy2 - yy1 + 1)
-        inter = torch.tensor(w * h).cuda() if cuda else torch.tensor(w * h)
+        w = torch.maximum(torch.tensor(0.0, device=dets.device), xx2 - xx1 + 1)
+        h = torch.maximum(torch.tensor(0.0, device=dets.device), yy2 - yy1 + 1)
+        inter = w * h
         ovr = torch.div(inter, (areas[i] + areas[pos:] - inter))
 
         # Gaussian decay
